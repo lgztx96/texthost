@@ -10,7 +10,7 @@ const wchar_t* ALREADY_INJECTED = L"Textractor: already injected";
 const wchar_t* NEED_32_BIT = L"Textractor: architecture mismatch: only Textractor x86 can inject this process";
 const wchar_t* NEED_64_BIT = L"Textractor: architecture mismatch: only Textractor x64 can inject this process";
 const wchar_t* INVALID_CODEPAGE = L"Textractor: couldn't convert text (invalid codepage?)";
-const wchar_t* INJECT_FAILED = L"Textractor: Enjekte edilemedi";
+const wchar_t* INJECT_FAILED = L"Textractor: couldn't inject";
 const wchar_t* CONSOLE = L"Console";
 const wchar_t* CLIPBOARD = L"Clipboard";
 
