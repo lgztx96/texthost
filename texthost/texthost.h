@@ -15,5 +15,5 @@ namespace TextHost
 	DLLEXPORT DWORD __stdcall DetachProcess(DWORD processId);
 	DLLEXPORT DWORD __stdcall InsertHook(DWORD processId, LPCWSTR command);
 	DLLEXPORT DWORD __stdcall RemoveHook(DWORD processId, uint64_t address);
-	DLLEXPORT DWORD __stdcall AddClipBoardThread(HWND handle);
+	DLLEXPORT DWORD __stdcall AddClipboardThread(HWND handle);
 }

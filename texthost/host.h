@@ -22,7 +22,7 @@ namespace Host
 
 	void AddConsoleOutput(std::wstring text);
 
-	void AddClipBoardThread(DWORD thread_id);
+	void AddClipboardThread(DWORD thread_id);
 
 	inline int defaultCodepage = SHIFT_JIS;
 

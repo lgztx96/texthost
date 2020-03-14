@@ -233,7 +233,7 @@ namespace Host
 		GetThread(console).AddSentence(std::move(text));
 	}
 
-	void AddClipBoardThread(DWORD thread_id)
+	void AddClipboardThread(DWORD thread_id)
 	{
 		textThreadsByParams->try_emplace(clipboard, clipboard, HookParam{}, CLIPBOARD);
 		OnCreate(GetThread(clipboard));
