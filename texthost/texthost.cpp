@@ -59,14 +59,11 @@ namespace TextHost
 		return 0;
 	}
 
-	DLLEXPORT BOOL __stdcall AddClipBoardThread(HWND handle)
+	DLLEXPORT DWORD __stdcall AddClipBoardThread(HWND handle)
 	{
 		if (AddClipboardFormatListener(handle) == TRUE)
-		{
 			Host::AddClipBoardThread(GetWindowThreadProcessId(handle, NULL));
-			return TRUE;
-		}
-		return FALSE;
+		return 0;
 	}
 }
 
