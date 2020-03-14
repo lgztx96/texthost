@@ -5,7 +5,6 @@
 #include <io.h>
 #include <fcntl.h>
 
-
 const wchar_t* ALREADY_INJECTED = L"Textractor: already injected";
 const wchar_t* NEED_32_BIT = L"Textractor: architecture mismatch: only Textractor x86 can inject this process";
 const wchar_t* NEED_64_BIT = L"Textractor: architecture mismatch: only Textractor x64 can inject this process";
@@ -60,11 +59,14 @@ namespace TextHost
 		return 0;
 	}
 
-	DLLEXPORT DWORD __stdcall AddClipBoardThread(HWND handle)
+	DLLEXPORT BOOL __stdcall AddClipBoardThread(HWND handle)
 	{
-		if (AddClipboardFormatListener(handle)==TRUE)
-        Host::AddClipBoardThread(GetWindowThreadProcessId(handle, NULL));
-		return 0;
+		if (AddClipboardFormatListener(handle) == TRUE)
+		{
+			Host::AddClipBoardThread(GetWindowThreadProcessId(handle, NULL));
+			return TRUE;
+		}
+		return FALSE;
 	}
 }
 

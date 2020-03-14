@@ -4,7 +4,7 @@
 #define DLLEXPORT extern "C" __declspec(dllexport)
 
 typedef void(__stdcall* CallbackFunc)(DWORD processid);
-typedef void(__stdcall* OnCreateThreadFunc)(int64_t thread_id,DWORD processId,int64_t addr,int64_t context,int64_t subcontext,LPCWSTR name,LPCWSTR hookcode);
+typedef void(__stdcall* OnCreateThreadFunc)(int64_t thread_id,DWORD processId,uint64_t addr,uint64_t context,uint64_t subcontext,LPCWSTR name,LPCWSTR hookcode);
 typedef void(__stdcall* OnRemoveThreadFunc)(int64_t thread_id);
 typedef void(__stdcall* OnOutputFunc)(int64_t thread_id, LPCWSTR output);
 
@@ -15,5 +15,5 @@ namespace TextHost
 	DLLEXPORT DWORD __stdcall DetachProcess(DWORD processId);
 	DLLEXPORT DWORD __stdcall InsertHook(DWORD processId, LPCWSTR command);
 	DLLEXPORT DWORD __stdcall RemoveHook(DWORD processId, uint64_t address);
-	DLLEXPORT DWORD __stdcall AddClipBoardThread(HWND handle);
+	DLLEXPORT BOOL __stdcall AddClipBoardThread(HWND handle);
 }
