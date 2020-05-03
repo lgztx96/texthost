@@ -5,4 +5,5 @@ EXPORTS
   DetachProcess @3
   InsertHook @4
   RemoveHook @5
-  AddClipboardThread @6
+  FindHooks @6
+  AddClipboardThread @7
