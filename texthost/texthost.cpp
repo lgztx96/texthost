@@ -25,7 +25,6 @@ const wchar_t* INVALID_CODEPAGE = L"Textractor: 无法转换文本 (无效的代码页?)";
 const wchar_t* INJECT_FAILED = L"Textractor: 无法注入";
 const wchar_t* INVALID_CODE = L"Textractor: 无效特殊码";
 const wchar_t* INVALID_PROCESS = L"Textractor: 无效进程";
-const wchar_t* INVALID_REGEX = L"Textractor: 无效正则表达式";
 const wchar_t* INITIALIZED = L"Textractor: 初始化完成";
 const wchar_t* CONSOLE = L"控制台";
 const wchar_t* CLIPBOARD = L"剪贴板";
