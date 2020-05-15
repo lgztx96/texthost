@@ -5,6 +5,7 @@
 #include "extension.h"
 #include <io.h>
 #include <fcntl.h>
+#include <fstream>
 
 //const wchar_t* ALREADY_INJECTED = L"Textractor: already injected";
 //const wchar_t* NEED_32_BIT = L"Textractor: architecture mismatch: only Textractor x86 can inject this process";
@@ -24,6 +25,7 @@ const wchar_t* INVALID_CODEPAGE = L"Textractor: 无法转换文本 (无效的代码页?)";
 const wchar_t* INJECT_FAILED = L"Textractor: 无法注入";
 const wchar_t* INVALID_CODE = L"Textractor: 无效特殊码";
 const wchar_t* INVALID_PROCESS = L"Textractor: 无效进程";
+const wchar_t* INVALID_REGEX = L"Textractor: 无效正则表达式";
 const wchar_t* INITIALIZED = L"Textractor: 初始化完成";
 const wchar_t* CONSOLE = L"控制台";
 const wchar_t* CLIPBOARD = L"剪贴板";
@@ -37,7 +39,7 @@ namespace TextHost
 		                                 OutputText output
 	                                    )
 	{
-		auto createthread = [create](TextThread& thread)
+		auto createThread = [create](TextThread& thread)
 		{
 			create(thread.handle, 
 				thread.tp.processId, 
@@ -47,11 +49,11 @@ namespace TextHost
 				thread.name.c_str(), 
 				Util::GenerateCode(thread.hp, thread.tp.processId).c_str());
 		};
-		auto removethread = [remove](TextThread& thread)
+		auto removeThread = [remove](TextThread& thread)
 		{
 			remove(thread.handle);
 		};
-		auto outputtext = [output](TextThread& thread, std::wstring& text)
+		auto outputText = [output](TextThread& thread, std::wstring& text)
 		{
 			Extension::RemoveRepeatChar(thread.handle,text);
 			Extension::RemoveRepeatPhrase(thread.handle,text);
@@ -59,7 +61,7 @@ namespace TextHost
 			return false;
 		};
 
-		Host::Start(connect,disconnect,createthread,removethread,outputtext);
+		Host::Start(connect, disconnect, createThread, removeThread, outputText);
 		Host::AddConsoleOutput(INITIALIZED);
 		return 0;
 	}
@@ -94,14 +96,51 @@ namespace TextHost
 		return 0;
 	}
 
-	DLLEXPORT DWORD WINAPI FindHooks(DWORD processId,LPCWSTR text, int codepage)
+	DLLEXPORT DWORD WINAPI SearchForText(DWORD processId, LPCWSTR text, int codepage)
 	{
 		SearchParam sp = {};
 		wcsncpy_s(sp.text, text, PATTERN_SIZE - 1);
 		sp.codepage = codepage;
 		try { Host::FindHooks(processId, sp); }
-		catch (std::out_of_range) {}
+		catch (std::exception) {}
 		return 0;
+	}
+
+	DLLEXPORT VOID WINAPI SearchForHooks(DWORD processId, SearchParam* sp, FindHooks findHooks)
+	{
+		auto hooks = std::make_shared<std::vector<std::wstring>>();
+		auto timeout = GetTickCount64() + sp->searchTime + 100'00;
+
+		try
+		{
+			Host::FindHooks(processId, *sp,
+				[hooks](HookParam hp, std::wstring text)
+				{
+					hooks->push_back(Util::GenerateCode(hp) + L" => " + text);
+				});
+		}
+		catch (std::out_of_range) { return; }
+
+		std::thread([hooks,timeout,findHooks]
+			{
+				for (int lastSize = 0; hooks->size() == 0 || hooks->size() != lastSize; Sleep(2000))
+				{
+						lastSize = hooks->size();
+						if (GetTickCount64() > timeout) break; //如果没有找到结果，size始终为0，不能跳出循环，所以设定超时时间
+				}
+				std::string location = std::filesystem::current_path().string() + "\\";
+				std::ofstream saveFile(location + "result.txt");
+				if (saveFile.is_open()) 
+				{
+					for (std::vector<std::wstring>::const_iterator it = hooks->begin(); it != hooks->end(); ++it)
+					{
+						saveFile << WideStringToString(*it) << std::endl; //utf-8
+					}
+					saveFile.close();
+					if(hooks->size()!= 0)findHooks();
+				}
+				hooks->clear();
+			}).detach();
 	}
 
 	DLLEXPORT DWORD WINAPI AddClipboardThread(HWND handle)
