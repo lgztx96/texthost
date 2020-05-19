@@ -1,11 +1,11 @@
 #pragma once
 
-#include "common.h"
+#include "pch.h"
 #include "textthread.h"
 
 namespace Host
 {
-	using ProcessEventHandler = std::function<void(DWORD)>;
+	using ProcessEventHandler = std::function<void(DWORD)>;;
 	using ThreadEventHandler = std::function<void(TextThread&)>;
 	using HookEventHandler = std::function<void(HookParam, std::wstring text)>;
 	void Start(ProcessEventHandler Connect, ProcessEventHandler Disconnect, ThreadEventHandler Create, ThreadEventHandler Destroy, TextThread::OutputCallback Output);
@@ -21,7 +21,6 @@ namespace Host
 	TextThread& GetThread(ThreadParam tp);
 
 	void AddConsoleOutput(std::wstring text);
-
 	void AddClipboardThread(DWORD thread_id);
 
 	inline int defaultCodepage = SHIFT_JIS;

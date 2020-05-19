@@ -7,10 +7,16 @@
 // 8/24/2013 TODO:
 // - Clean up this file
 // - Reduce global variables. Use namespaces or singleton classes instead.
-#include "common.h"
 #include "types.h"
 
-void SetTrigger();
+// Artikash 6/17/2019 TODO: These have the wrong values on x64
+/** jichi 12/24/2014
+	  *  @param  addr  function address
+	  *  @param  frame  real address of the function, supposed to be the same as addr
+	  *  @param  stack  address of current stack - 4
+	  *  @return  If success, which is reverted
+  */
+inline std::atomic<bool (*)(LPVOID addr, DWORD frame, DWORD stack)> trigger_fun = nullptr;
 
 // jichi 9/25/2013: This class will be used by NtMapViewOfSectionfor
 // interprocedure communication, where constructor/destructor will NOT work.
@@ -48,4 +54,3 @@ private:
 enum { MAX_HOOK = 300, HOOK_BUFFER_SIZE = MAX_HOOK * sizeof(TextHook), HOOK_SECTION_SIZE = HOOK_BUFFER_SIZE * 2 };
 
 // EOF
-

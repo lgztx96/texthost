@@ -124,7 +124,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;TEXTHOST_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -161,7 +161,6 @@
     <ClInclude Include="const.h" />
     <ClInclude Include="defs.h" />
     <ClInclude Include="extension.h" />
-    <ClInclude Include="framework.h" />
     <ClInclude Include="hookcode.h" />
     <ClInclude Include="host.h" />
     <ClInclude Include="module.h" />
@@ -170,7 +169,6 @@
     <ClInclude Include="texthost.h" />
     <ClInclude Include="textthread.h" />
     <ClInclude Include="types.h" />
-    <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -185,7 +183,6 @@
     </ClCompile>
     <ClCompile Include="texthost.cpp" />
     <ClCompile Include="textthread.cpp" />
-    <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="texthost.def" />

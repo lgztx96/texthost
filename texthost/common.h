@@ -28,13 +28,14 @@ constexpr bool x64 = false;
 #endif
 
 template <typename T, typename... Xs>
-struct ArrayImpl { using type = std::tuple<T, Xs...>[]; };
+struct ArrayImpl { using Type = std::tuple<T, Xs...>[]; };
 template <typename T>
-struct ArrayImpl<T> { using type = T[]; };
+struct ArrayImpl<T> { using Type = T[]; };
 template <typename... Ts>
-using Array = typename ArrayImpl<Ts...>::type;
+using Array = typename ArrayImpl<Ts...>::Type;
 
-template <auto F> using Functor = std::integral_constant<std::remove_reference_t<decltype(F)>, F>;
+template <auto F>
+using Functor = std::integral_constant<std::remove_reference_t<decltype(F)>, F>;
 
 template <typename V>
 struct Identity { V operator()(V v) const { return v; } };
@@ -76,6 +77,11 @@ public:
 
 	Locker Acquire() { return { std::unique_lock(m), contents }; }
 	Locker operator->() { return Acquire(); }
+
+	T Copy()
+	{
+		return Acquire().contents;
+	}
 
 private:
 	T contents;
@@ -138,9 +144,3 @@ inline std::string WideStringToString(const std::wstring& text)
 
 template <typename... Args>
 inline void TEXTRACTOR_MESSAGE(const wchar_t* format, const Args&... args) { MessageBoxW(NULL, FormatString(format, args...).c_str(), L"Textractor", MB_OK); }
-
-#ifdef _DEBUG
-#define TEST(...) static auto _ = CreateThread(nullptr, 0, [](auto) { __VA_ARGS__; return 0UL; }, NULL, 0, nullptr); 
-#else
-#define TEST(...)
-#endif

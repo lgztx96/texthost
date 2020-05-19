@@ -1,10 +1,8 @@
 #include "pch.h"
 #include "host.h"
-#include "util.h"
+#include "hookcode.h"
 #include "texthost.h"
 #include "extension.h"
-#include <io.h>
-#include <fcntl.h>
 #include <fstream>
 
 //const wchar_t* ALREADY_INJECTED = L"Textractor: already injected";
@@ -46,7 +44,7 @@ namespace TextHost
 				thread.tp.ctx, 
 				thread.tp.ctx2, 
 				thread.name.c_str(), 
-				Util::GenerateCode(thread.hp, thread.tp.processId).c_str());
+				HookCode::Generate(thread.hp, thread.tp.processId).c_str());
 		};
 		auto removeThread = [remove](TextThread& thread)
 		{
@@ -54,9 +52,12 @@ namespace TextHost
 		};
 		auto outputText = [output](TextThread& thread, std::wstring& text)
 		{
-			Extension::RemoveRepeatChar(thread.handle,text);
-			Extension::RemoveRepeatPhrase(thread.handle,text);
-			output(thread.handle, text.c_str());
+			if (!text.empty()) 
+			{
+				Extension::RemoveRepeatChar(thread.handle, text);
+				Extension::RemoveRepeatPhrase(thread.handle, text);
+				output(thread.handle, text.c_str());
+			}
 			return false;
 		};
 
@@ -67,8 +68,7 @@ namespace TextHost
 
 	DLLEXPORT DWORD WINAPI InjectProcess(DWORD processId)
 	{
-		try { Host::InjectProcess(processId); }
-		catch (std::out_of_range) {}		
+		Host::InjectProcess(processId); 	
 		return 0;
 	}
 
@@ -82,12 +82,12 @@ namespace TextHost
 
 	DLLEXPORT DWORD WINAPI InsertHook(DWORD processId, LPCWSTR command)
 	{
-		if(auto hp = Util::ParseCode(command))
+		if(auto hp = HookCode::Parse(command))
 		try {Host::InsertHook(processId, hp.value());}catch(std::out_of_range){}
 		else { Host::AddConsoleOutput(INVALID_CODE); }
 		return 0;
 	}
-	
+
 	DLLEXPORT DWORD WINAPI RemoveHook(DWORD processId, uint64_t address)
 	{
 		try { Host::RemoveHook(processId, address); }
@@ -115,7 +115,7 @@ namespace TextHost
 			Host::FindHooks(processId, *sp,
 				[hooks](HookParam hp, std::wstring text)
 				{
-					hooks->push_back(Util::GenerateCode(hp) + L" => " + text);
+					hooks->push_back(HookCode::Generate(hp) + L" => " + text);
 				});
 		}
 		catch (std::out_of_range) { return; }
@@ -127,7 +127,7 @@ namespace TextHost
 						lastSize = hooks->size();
 						if (GetTickCount64() > timeout) break; //如果没有找到结果，size始终为0，不能跳出循环，所以设定超时时间
 				}
-				std::string location = std::filesystem::current_path().string() + "\\";
+				static std::string location = std::filesystem::current_path().string() + "\\";
 				std::ofstream saveFile(location + "result.txt");
 				if (saveFile.is_open()) 
 				{

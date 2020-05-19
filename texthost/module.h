@@ -1,4 +1,6 @@
-#include "common.h"
+#pragma once
+
+#include "pch.h"
 #include <Psapi.h>
 
 inline std::optional<std::wstring> GetModuleFilename(DWORD processId, HMODULE module = NULL)
