@@ -12,12 +12,12 @@ typedef void(WINAPI* OutputText)(int64_t thread_id, LPCWSTR output);
 
 namespace TextHost
 {
-	DLLEXPORT DWORD WINAPI TextHostInit(ProcessEvent connect, ProcessEvent disconnect, OnCreateThread create, OnRemoveThread remove, OutputText output);
-	DLLEXPORT DWORD WINAPI InjectProcess(DWORD processId);
-	DLLEXPORT DWORD WINAPI DetachProcess(DWORD processId);
-	DLLEXPORT DWORD WINAPI InsertHook(DWORD processId, LPCWSTR command);
-	DLLEXPORT DWORD WINAPI RemoveHook(DWORD processId, uint64_t address);
-	DLLEXPORT DWORD WINAPI SearchForText(DWORD processId, LPCWSTR text, int codepage);
+	DLLEXPORT BOOL WINAPI TextHostInit(ProcessEvent connect, ProcessEvent disconnect, OnCreateThread create, OnRemoveThread remove, OutputText output);
+	DLLEXPORT VOID WINAPI InjectProcess(DWORD processId);
+	DLLEXPORT VOID WINAPI DetachProcess(DWORD processId);
+	DLLEXPORT VOID WINAPI InsertHook(DWORD processId, LPCWSTR command);
+	DLLEXPORT VOID WINAPI RemoveHook(DWORD processId, uint64_t address);
+	DLLEXPORT VOID WINAPI SearchForText(DWORD processId, LPCWSTR text, int codepage);
+	//DLLEXPORT VOID WINAPI AddClipboardThread(HWND handle);
 	DLLEXPORT VOID WINAPI SearchForHooks(DWORD processId, SearchParam* sp, FindHooks findhooks);
-	DLLEXPORT DWORD WINAPI AddClipboardThread(HWND handle);
 }

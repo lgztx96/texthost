@@ -6,9 +6,9 @@ namespace Extension
 	//https://github.com/Artikash/Textractor/tree/master/extensions
 	constexpr wchar_t ERASED = 0xf246;
 
-    bool  RemoveRepeatChar(int id, std::wstring& sentence)
+    void RemoveRepeatChar(std::wstring& sentence)
 	{
-		 if (id == 0) return false;
+		 //if (id == 0) return;
 
 		 std::vector<int> repeatNumbers(sentence.size() + 1, 0);
 		 int repeatNumber = 1;
@@ -26,7 +26,7 @@ namespace Extension
 				 repeatNumber = 1;
 			 }
 		 }
-		 if ((repeatNumber = std::distance(repeatNumbers.begin(), std::max_element(repeatNumbers.begin(), repeatNumbers.end()))) == 1) return false;
+		 if ((repeatNumber = std::distance(repeatNumbers.begin(), std::max_element(repeatNumbers.begin(), repeatNumbers.end()))) == 1) return;
 
 		 std::wstring newSentence;
 		 for (int i = 0; i < sentence.size();)
@@ -41,8 +41,7 @@ namespace Extension
 				 }
 			 }
 		 }
-		 sentence = newSentence;
-		 return true;				
+		 sentence = newSentence;			
 	}
 
 	std::vector<int> GenerateSuffixArray(const std::wstring& text)
@@ -82,9 +81,9 @@ namespace Extension
 		return suffixArray;
 	}
 
-	bool RemoveRepeatPhrase(int id, std::wstring& sentence)
+	void RemoveRepeatPhrase(std::wstring& sentence)
 	{
-		if (id == 0) return false;
+		//if (id == 0) return false;
 		//std::wstring sentence(text);
 		// This algorithm looks for repeating substrings (in other words, common prefixes among the set of suffixes) of the sentence with length > 6
 		// It then looks for any regions of characters at least twice as long as the substring made up only of characters in the substring, and erases them
@@ -116,6 +115,5 @@ namespace Extension
 			}
 		}
 		sentence.erase(std::remove(sentence.begin(), sentence.end(), ERASED), sentence.end());
-		return true;
 	}
 }

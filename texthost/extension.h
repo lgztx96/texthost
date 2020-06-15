@@ -4,6 +4,6 @@
 
 namespace Extension
 {
-	bool  RemoveRepeatChar(int id,std::wstring& text);
-	bool  RemoveRepeatPhrase(int id,std::wstring& text);
+	void RemoveRepeatChar(std::wstring& text);
+	void RemoveRepeatPhrase(std::wstring& text);
 }
