@@ -147,13 +147,13 @@ namespace TextHost
 			}).detach();
 	}
 
-	//DLLEXPORT VOID WINAPI AddClipboardThread(HWND handle)
-	//{	
-	//	/*if (AddClipboardFormatListener(handle))
-	//	{
-	//		auto threadId = GetWindowThreadProcessId(handle, NULL);
-	//		Host::AddClipboardThread(threadId);
-	//	}*/
-	//}
+	DLLEXPORT VOID WINAPI AddClipboardThread(HWND handle)
+	{	
+		if (AddClipboardFormatListener(handle))
+		{
+			auto threadId = GetWindowThreadProcessId(handle, NULL);
+			Host::AddClipboardThread(threadId);
+		}
+	}
 }
 
