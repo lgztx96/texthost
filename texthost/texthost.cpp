@@ -83,7 +83,7 @@ namespace TextHost
 	DLLEXPORT VOID WINAPI InsertHook(DWORD processId, LPCWSTR command)
 	{
 		if (auto hp = HookCode::Parse(command))
-			try { Host::InsertHook(processId, hp.value()); }
+		try { Host::InsertHook(processId, hp.value()); }
 		catch (std::out_of_range){ Host::AddConsoleOutput(INVALID_PROCESS); }
 		else { Host::AddConsoleOutput(INVALID_CODE); }
 	}

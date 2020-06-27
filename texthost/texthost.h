@@ -17,7 +17,7 @@ namespace TextHost
 	DLLEXPORT VOID WINAPI DetachProcess(DWORD processId);
 	DLLEXPORT VOID WINAPI InsertHook(DWORD processId, LPCWSTR command);
 	DLLEXPORT VOID WINAPI RemoveHook(DWORD processId, uint64_t address);
-	DLLEXPORT VOID WINAPI SearchForText(DWORD processId, LPCWSTR text, int codepage);
-	//DLLEXPORT VOID WINAPI AddClipboardThread(HWND handle);
+	DLLEXPORT VOID WINAPI SearchForText(DWORD processId, LPCWSTR text, INT codepage);
+	DLLEXPORT VOID WINAPI AddClipboardThread(HWND handle);
 	DLLEXPORT VOID WINAPI SearchForHooks(DWORD processId, SearchParam* sp, FindHooks findhooks);
 }
