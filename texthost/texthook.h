@@ -51,6 +51,36 @@ private:
 
 };
 
+class TextHook64
+{
+public:
+	HookParam64 hp;
+	union
+	{
+		uint64_t address;
+		void* location;
+	}; // Absolute address
+
+	bool Insert(HookParam64 hp, DWORD set_flag);
+	void Clear();
+
+private:
+	void Read();
+	bool InsertHookCode();
+	bool InsertReadCode();
+	void Send(uintptr_t dwDatabase);
+	int GetLength(uintptr_t base, uintptr_t in); // jichi 12/25/2013: Return 0 if failed
+	int HookStrlen(BYTE* data);
+	void RemoveHookCode();
+	void RemoveReadCode();
+
+	volatile DWORD useCount;
+	uint64_t readerThread, readerEvent;
+	bool err;
+	BYTE trampoline[140];
+
+};
+
 enum { MAX_HOOK = 300, HOOK_BUFFER_SIZE = MAX_HOOK * sizeof(TextHook), HOOK_SECTION_SIZE = HOOK_BUFFER_SIZE * 2 };
 
 // EOF

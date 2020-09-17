@@ -51,6 +51,12 @@
     <ClInclude Include="extension.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="util.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="wow64ext.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -74,10 +80,22 @@
     <ClCompile Include="extension.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="util.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="texthost.def">
       <Filter>源文件</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="wow64ext.lib">
+      <Filter>资源文件</Filter>
+    </Library>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="texthook-x64.dll" />
+    <CopyFileToFolders Include="texthook-x86.dll" />
   </ItemGroup>
 </Project>

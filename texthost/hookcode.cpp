@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "hookcode.h"
 #include "module.h"
+#include "util.h"
 
 namespace
 {
@@ -250,13 +251,28 @@ namespace
 		// Attempt to make the address relative
 		if (processId && !(hp.type & MODULE_OFFSET))
 			if (AutoHandle<> process = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
-				if (MEMORY_BASIC_INFORMATION info = {}; VirtualQueryEx(process, (LPCVOID)hp.address, &info, sizeof(info)))
-					if (auto moduleName = GetModuleFilename(processId, (HMODULE)info.AllocationBase))
-					{
-						hp.type |= MODULE_OFFSET;
-						hp.address -= (uint64_t)info.AllocationBase;
-						wcsncpy_s(hp.module, moduleName->c_str() + moduleName->rfind(L'\\') + 1, MAX_MODULE_SIZE - 1);
-					}
+			{
+				if (Is64BitProcess(process))
+				{
+					if (MEMORY_BASIC_INFORMATION64 info = {}; VirtualQueryEx64(process, hp.address, &info, sizeof(info)))
+						if (auto moduleName = GetModuleFilename(processId, (HMODULE)info.AllocationBase))
+						{
+							hp.type |= MODULE_OFFSET;
+							hp.address -= (uint64_t)info.AllocationBase;
+							wcsncpy_s(hp.module, moduleName->c_str() + moduleName->rfind(L'\\') + 1, MAX_MODULE_SIZE - 1);
+						}
+				}
+				else
+				{
+					if (MEMORY_BASIC_INFORMATION info = {}; VirtualQueryEx(process, (LPCVOID)hp.address, &info, sizeof(info)))
+						if (auto moduleName = GetModuleFilename(processId, (HMODULE)info.AllocationBase))
+						{
+							hp.type |= MODULE_OFFSET;
+							hp.address -= (uint64_t)info.AllocationBase;
+							wcsncpy_s(hp.module, moduleName->c_str() + moduleName->rfind(L'\\') + 1, MAX_MODULE_SIZE - 1);
+						}
+				}
+			}
 
 		HCode += L'@' + HexString(hp.address);
 		if (hp.type & MODULE_OFFSET) HCode += L':' + std::wstring(hp.module);

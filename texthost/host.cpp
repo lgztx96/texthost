@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "host.h"
 #include "defs.h"
+#include "util.h"
 #include "module.h"
 #include "hookcode.h"
 #include "texthook.h"
@@ -19,8 +20,10 @@ namespace
 	public:
 		ProcessRecord(DWORD processId, HANDLE pipe) :
 			pipe(pipe),
+			is64bitProcess(Is64BitProcess(OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId))),
 			mappedFile(OpenFileMappingW(FILE_MAP_READ, FALSE, (ITH_SECTION_ + std::to_wstring(processId)).c_str())),
 			view(*(const TextHook(*)[MAX_HOOK])MapViewOfFile(mappedFile, FILE_MAP_READ, 0, 0, HOOK_SECTION_SIZE / 2)), // jichi 1/16/2015: Changed to half to hook section size
+			view64(*(const TextHook64(*)[MAX_HOOK])MapViewOfFile(mappedFile, FILE_MAP_READ, 0, 0, HOOK_SECTION_SIZE / 2)), // jichi 1/16/2015: Changed to half to hook section size
 			viewMutex(ITH_HOOKMAN_MUTEX_ + std::to_wstring(processId))
 		{}
 
@@ -33,6 +36,33 @@ namespace
 		{
 			if (!view) return {};
 			std::scoped_lock lock(viewMutex);
+			if (is64bitProcess && view64)
+			{
+				for (auto const& hook64 : view64) {
+					if (hook64.address == addr)
+					{
+						TextHook hook;
+						HookParam hp = {};
+						hp.address = hook64.hp.address;
+						hp.offset = hook64.hp.offset;
+						hp.index = hook64.hp.index;
+						hp.split = hook64.hp.split;
+						hp.split_index = hook64.hp.split_index;
+						hp.null_length = hook64.hp.null_length;
+						memcpy(hp.name, hook64.hp.name, strlen(hook64.hp.name));
+						wmemcpy(hp.module, hook64.hp.module, wcslen(hook64.hp.module));
+						memcpy(hp.function, hook64.hp.function, strlen(hook64.hp.function));
+						hp.type = hook64.hp.type;
+						hp.codepage = hook64.hp.codepage;
+						hp.length_offset = hook64.hp.length_offset;
+						hp.padding = hook64.hp.padding;
+						hp.user_value = hook64.hp.user_value;
+						hook.hp = hp;
+						return hook;
+					}
+				}
+				return {};
+			}
 			for (auto hook : view)
 				if (hook.address == addr) return hook;
 			return {};
@@ -55,8 +85,10 @@ namespace
 
 	private:
 		HANDLE pipe;
+		bool is64bitProcess;
 		AutoHandle<> mappedFile;
 		const TextHook(&view)[MAX_HOOK];
+		const TextHook64(&view64)[MAX_HOOK];
 		WinMutex viewMutex;
 	};
 
@@ -172,21 +204,22 @@ namespace Host
 				if (processId == GetCurrentProcessId()) return;
 
 				WinMutex(ITH_HOOKMAN_MUTEX_ + std::to_wstring(processId));
-				if (GetLastError() == ERROR_ALREADY_EXISTS) return AddConsoleOutput(ALREADY_INJECTED);
+				if (GetLastError() == ERROR_ALREADY_EXISTS)
+					return AddConsoleOutput(ALREADY_INJECTED);
 
 				if (AutoHandle<> process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId))
 				{
-#ifdef _WIN64
-					BOOL invalidProcess = FALSE;
-					IsWow64Process(process, &invalidProcess);
-					if (invalidProcess) return AddConsoleOutput(NEED_32_BIT);
-#endif
-					static std::wstring location = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL);
+					if (Is64BitProcess(process))
+					{
+						std::wstring texthook64 = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL_X64);
+						if (InjectResult::OK == Wow64InjectWin64(processId, texthook64)) return;
+					}
+					static std::wstring location = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL_X86);
 					if (LPVOID remoteData = VirtualAllocEx(process, nullptr, (location.size() + 1) * sizeof(wchar_t), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE))
 					{
 						WriteProcessMemory(process, remoteData, location.c_str(), (location.size() + 1) * sizeof(wchar_t), nullptr);
 						if (AutoHandle<> thread = CreateRemoteThread(process, nullptr, 0, (LPTHREAD_START_ROUTINE)LoadLibraryW, remoteData, 0, nullptr)) WaitForSingleObject(thread, INFINITE);
-						else if (GetLastError() == ERROR_ACCESS_DENIED) AddConsoleOutput(NEED_64_BIT); // https://stackoverflow.com/questions/16091141/createremotethread-access-denied
+						//else if (GetLastError() == ERROR_ACCESS_DENIED) AddConsoleOutput(NEED_64_BIT); // https://stackoverflow.com/questions/16091141/createremotethread-access-denied
 						VirtualFreeEx(process, remoteData, 0, MEM_RELEASE);
 						return;
 					}

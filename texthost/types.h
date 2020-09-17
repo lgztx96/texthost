@@ -49,6 +49,31 @@ struct HookParam
 	char name[HOOK_NAME_SIZE];
 };
 
+struct HookParam64
+{
+	uint64_t address; // absolute or relative address
+	int offset, // offset of the data in the memory
+		index, // deref_offset1
+		split, // offset of the split character
+		split_index, // deref_offset2
+		null_length;
+
+	wchar_t module[MAX_MODULE_SIZE];
+
+	char function[MAX_MODULE_SIZE];
+	DWORD type; // flags
+	UINT codepage; // text encoding
+	short length_offset; // index of the string length
+	uint64_t padding; // padding before string
+	DWORD user_value; // 7/20/2014: jichi additional parameters for PSP games
+
+	uint64_t text_fun;
+	uint64_t filter_fun;
+	uint64_t hook_fun;
+	uint64_t length_fun;
+	char name[HOOK_NAME_SIZE];
+};
+
 struct ThreadParam
 {
 	bool operator==(ThreadParam other) const { return processId == other.processId && addr == other.addr && ctx == other.ctx && ctx2 == other.ctx2; }
