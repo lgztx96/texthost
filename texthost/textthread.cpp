@@ -93,7 +93,7 @@ void TextThread::Flush()
 	{
 		totalSize += sentence.size();
 		sentence.erase(std::remove(sentence.begin(), sentence.end(), L'\0'), sentence.end());
-		//if (Output(*this, sentence)) storage->append(sentence);
+		Output(*this, sentence);
 	}
 
 	std::scoped_lock lock(bufferMutex);
