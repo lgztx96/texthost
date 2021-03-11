@@ -14,7 +14,7 @@ static bool RemoveRepetition(std::wstring& text)
 	return false;
 }
 
-TextThread::TextThread(ThreadParam tp, HookParam hp, std::optional<std::wstring> name) :
+TextThread::TextThread(ThreadParam tp, HookBaseInfo hp, std::optional<std::wstring> name) :
 	handle(threadCounter++),
 	name(name.value_or(StringToWideString(hp.name))),
 	tp(tp),

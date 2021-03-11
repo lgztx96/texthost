@@ -51,15 +51,15 @@
     <ClInclude Include="extension.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="yapi.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="hookcode.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="host.cpp">
@@ -72,6 +72,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="extension.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="yapi.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

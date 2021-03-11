@@ -7,15 +7,22 @@ namespace Host
 {
 	using ProcessEventHandler = std::function<void(DWORD)>;;
 	using ThreadEventHandler = std::function<void(TextThread&)>;
-	using HookEventHandler = std::function<void(HookParam, std::wstring text)>;
+
+	template <typename T>
+	using HookEventHandler = std::function<void(T, std::wstring text)>;
+
 	void Start(ProcessEventHandler Connect, ProcessEventHandler Disconnect, ThreadEventHandler Create, ThreadEventHandler Destroy, TextThread::OutputCallback Output);
 
 	void InjectProcess(DWORD processId);
 	void DetachProcess(DWORD processId);
 
-	void InsertHook(DWORD processId, HookParam hp);
+	void InsertHookX86(DWORD processId, HookParamX86 hp);
+	void InsertHookX64(DWORD processId, HookParamX64 hp);
+
 	void RemoveHook(DWORD processId, uint64_t address);
-	void FindHooks(DWORD processId, SearchParam sp, HookEventHandler HookFound = {});
+
+	void FindHooksX86(DWORD processId, SearchParamX86 sp, HookEventHandler<HookParamX86> HookFound = {});
+	void FindHooksX64(DWORD processId, SearchParamX64 sp, HookEventHandler<HookParamX64> HookFound = {});
 
 	TextThread* GetThread(int64_t handle);
 	TextThread& GetThread(ThreadParam tp);
@@ -27,3 +34,7 @@ namespace Host
 
 	constexpr ThreadParam console{ 0, -1LL, -1LL, -1LL }, clipboard{ 0, 0, -1LL, -1LL };
 }
+
+
+
+

@@ -2,8 +2,9 @@
 #include "host.h"
 #include "defs.h"
 #include "module.h"
-#include "hookcode.h"
 #include "texthook.h"
+#include "hookcode.h"
+#include "yapi.h"
 
 extern const wchar_t* ALREADY_INJECTED;
 extern const wchar_t* NEED_32_BIT;
@@ -19,22 +20,45 @@ namespace
 	public:
 		ProcessRecord(DWORD processId, HANDLE pipe) :
 			pipe(pipe),
+			is64Bit(detail::Is64BitProcess(OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))),
 			mappedFile(OpenFileMappingW(FILE_MAP_READ, FALSE, (ITH_SECTION_ + std::to_wstring(processId)).c_str())),
-			view(*(const TextHook(*)[MAX_HOOK])MapViewOfFile(mappedFile, FILE_MAP_READ, 0, 0, HOOK_SECTION_SIZE / 2)), // jichi 1/16/2015: Changed to half to hook section size
+			viewX86(*(const TextHookX86(*)[MAX_HOOK])MapViewOfFile(mappedFile, FILE_MAP_READ, 0, 0, HOOK_SECTION_SIZE_X86 / 2)), // jichi 1/16/2015: Changed to half to hook section size
+			viewX64(*(const TextHookX64(*)[MAX_HOOK])MapViewOfFile(mappedFile, FILE_MAP_READ, 0, 0, HOOK_SECTION_SIZE_X64 / 2)), // jichi 1/16/2015: Changed to half to hook section size
 			viewMutex(ITH_HOOKMAN_MUTEX_ + std::to_wstring(processId))
-		{}
+		{
+			if (is64Bit)
+				OnHookFoundX64 = [](HookParamX64 hp, std::wstring text) { Host::AddConsoleOutput(HookCode::Generate(hp) + L": " + text); };
+
+		}
 
 		~ProcessRecord()
 		{
-			UnmapViewOfFile(view);
+			UnmapViewOfFile(viewX86);
+			UnmapViewOfFile(viewX64);
 		}
 
-		TextHook GetHook(uint64_t addr)
+		HookBaseInfo GetHookInfo(uint64_t addr, DWORD processId)
+		{
+			return is64Bit ? GetHook(viewX64, addr, processId) : GetHook(viewX86, addr, processId);
+		}
+
+		template <typename T>
+		HookBaseInfo GetHook(T const& view, uint64_t addr, DWORD processId)
 		{
 			if (!view) return {};
 			std::scoped_lock lock(viewMutex);
-			for (auto hook : view)
-				if (hook.address == addr) return hook;
+			for (auto const& hook : view)
+			{
+				if (hook.address == addr)
+				{
+					HookBaseInfo data = {};
+					data.codepage = hook.hp.codepage;
+					data.type = hook.hp.type;
+					data.HookCode = HookCode::Generate(hook.hp, processId);
+					memcpy(data.name, hook.hp.name, strlen(hook.hp.name));
+					return data;
+				}
+			}
 			return {};
 		}
 
@@ -48,15 +72,18 @@ namespace
 				}).detach();
 		}
 
-		Host::HookEventHandler OnHookFound = [](HookParam hp, std::wstring text)
+		union
 		{
-			Host::AddConsoleOutput(HookCode::Generate(hp) + L": " + text);
+			Host::HookEventHandler<HookParamX86> OnHookFoundX86 = [](HookParamX86 hp, std::wstring text) { Host::AddConsoleOutput(HookCode::Generate(hp) + L": " + text); };
+			Host::HookEventHandler<HookParamX64> OnHookFoundX64;
 		};
 
 	private:
 		HANDLE pipe;
+		BOOL is64Bit;
 		AutoHandle<> mappedFile;
-		const TextHook(&view)[MAX_HOOK];
+		const TextHookX86(&viewX86)[MAX_HOOK];
+		const TextHookX64(&viewX64)[MAX_HOOK];
 		WinMutex viewMutex;
 	};
 
@@ -79,6 +106,18 @@ namespace
 		}
 	}
 
+	template <typename Notitf, typename Param>
+	void OnFindHooks(Notitf info, std::function<void(Param, std::wstring text)> OnHookFound)
+	{
+		std::wstring wide = info.text;
+		if (wide.size() > STRING) OnHookFound(info.hp, std::move(info.text));
+		info.hp.type &= ~USING_UNICODE;
+		if (auto converted = StringToWideString((char*)info.text, info.hp.codepage))
+			if (converted->size() > STRING) OnHookFound(info.hp, std::move(converted.value()));
+		if (auto converted = StringToWideString((char*)info.text, info.hp.codepage = CP_UTF8))
+			if (converted->size() > STRING) OnHookFound(info.hp, std::move(converted.value()));
+	}
+
 	void CreatePipe()
 	{
 		std::thread([]
@@ -93,7 +132,9 @@ namespace
 
 				BYTE buffer[PIPE_BUFFER_SIZE] = {};
 				DWORD bytesRead, processId;
+
 				ReadFile(hookPipe, &processId, sizeof(processId), &bytesRead, nullptr);
+				BOOL is64Bit = detail::Is64BitProcess(OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId));
 				processRecordsByIds->try_emplace(processId, processId, hostPipe);
 				OnConnect(processId);
 
@@ -104,15 +145,18 @@ namespace
 					{
 					case HOST_NOTIFICATION_FOUND_HOOK:
 					{
-						auto info = *(HookFoundNotif*)buffer;
-						auto OnHookFound = processRecordsByIds->at(processId).OnHookFound;
-						std::wstring wide = info.text;
-						if (wide.size() > STRING) OnHookFound(info.hp, std::move(info.text));
-						info.hp.type &= ~USING_UNICODE;
-						if (auto converted = StringToWideString((char*)info.text, info.hp.codepage))
-							if (converted->size() > STRING) OnHookFound(info.hp, std::move(converted.value()));
-						if (auto converted = StringToWideString((char*)info.text, info.hp.codepage = CP_UTF8))
-							if (converted->size() > STRING) OnHookFound(info.hp, std::move(converted.value()));
+						if (is64Bit)
+						{
+							auto info = *(HookFoundNotif<HookParamX64>*)buffer;
+							auto OnHookFound = processRecordsByIds->at(processId).OnHookFoundX64;
+							OnFindHooks(info, OnHookFound);
+						}
+						else
+						{
+							auto info = *(HookFoundNotif<HookParamX86>*)buffer;
+							auto OnHookFound = processRecordsByIds->at(processId).OnHookFoundX86;
+							OnFindHooks(info, OnHookFound);
+						}
 					}
 					break;
 					case HOST_NOTIFICATION_RMVHOOK:
@@ -134,7 +178,7 @@ namespace
 						auto thread = textThreadsByParams->find(tp);
 						if (thread == textThreadsByParams->end())
 						{
-							try { thread = textThreadsByParams->try_emplace(tp, tp, processRecordsByIds->at(tp.processId).GetHook(tp.addr).hp).first; }
+							try { thread = textThreadsByParams->try_emplace(tp, tp, processRecordsByIds->at(tp.processId).GetHookInfo(tp.addr, processId)).first; }
 							catch (std::out_of_range) { continue; } // probably garbage data in pipe, try again
 							OnCreate(thread->second);
 						}
@@ -159,8 +203,9 @@ namespace Host
 		OnCreate = [Create](TextThread& thread) { Create(thread); thread.Start(); };
 		OnDestroy = [Destroy](TextThread& thread) { thread.Stop(); Destroy(thread); };
 		TextThread::Output = Output;
-
-		textThreadsByParams->try_emplace(console, console, HookParam{}, CONSOLE);
+		HookBaseInfo info;
+		info.HookCode = HookCode::Generate(HookParamX86{});
+		textThreadsByParams->try_emplace(console, console, info, CONSOLE);
 		OnCreate(GetThread(console));
 		CreatePipe();
 	}
@@ -176,17 +221,28 @@ namespace Host
 
 				if (AutoHandle<> process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId))
 				{
-#ifdef _WIN64
-					BOOL invalidProcess = FALSE;
-					IsWow64Process(process, &invalidProcess);
-					if (invalidProcess) return AddConsoleOutput(NEED_32_BIT);
-#endif
-					static std::wstring location = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL);
+					std::wstring location = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL_X86);;
+					bool is64Bit = false;
+					if (is64Bit = detail::Is64BitProcess(process)) 
+					{
+						location = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL_X64);
+					}
+
+					if (x64 != is64Bit)
+					{
+						DWORD64 injectedDll;
+						yapi::YAPICall LoadLibraryW(process, _T("kernel32.dll"), "LoadLibraryW");
+						if(x64)injectedDll = LoadLibraryW.Dw64()(location.c_str());
+						else injectedDll = LoadLibraryW(location.c_str());
+						if(injectedDll == NULL) AddConsoleOutput(INJECT_FAILED);
+						return;
+					}
+					
 					if (LPVOID remoteData = VirtualAllocEx(process, nullptr, (location.size() + 1) * sizeof(wchar_t), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE))
 					{
 						WriteProcessMemory(process, remoteData, location.c_str(), (location.size() + 1) * sizeof(wchar_t), nullptr);
 						if (AutoHandle<> thread = CreateRemoteThread(process, nullptr, 0, (LPTHREAD_START_ROUTINE)LoadLibraryW, remoteData, 0, nullptr)) WaitForSingleObject(thread, INFINITE);
-						else if (GetLastError() == ERROR_ACCESS_DENIED) AddConsoleOutput(NEED_64_BIT); // https://stackoverflow.com/questions/16091141/createremotethread-access-denied
+						//else if (GetLastError() == ERROR_ACCESS_DENIED) AddConsoleOutput(NEED_64_BIT); // https://stackoverflow.com/questions/16091141/createremotethread-access-denied
 						VirtualFreeEx(process, remoteData, 0, MEM_RELEASE);
 						return;
 					}
@@ -200,21 +256,32 @@ namespace Host
 	{
 		processRecordsByIds->at(processId).Send(HOST_COMMAND_DETACH);
 	}
-
-	void InsertHook(DWORD processId, HookParam hp)
+	
+	void InsertHookX86(DWORD processId, HookParamX86 hp)
 	{
 		processRecordsByIds->at(processId).Send(InsertHookCmd(hp));
+	}
+
+	void InsertHookX64(DWORD processId, HookParamX64 hp)
+	{
+		processRecordsByIds->at(processId).Send(InsertHookCmd(hp));
+	}
+
+	void FindHooksX86(DWORD processId, SearchParamX86 sp, HookEventHandler<HookParamX86> HookFound)
+	{
+		if (HookFound) processRecordsByIds->at(processId).OnHookFoundX86 = HookFound;
+		processRecordsByIds->at(processId).Send(FindHookCmd(sp));
+	}
+
+	void FindHooksX64(DWORD processId, SearchParamX64 sp, HookEventHandler<HookParamX64> HookFound)
+	{
+		if (HookFound) processRecordsByIds->at(processId).OnHookFoundX64 = HookFound;
+		processRecordsByIds->at(processId).Send(FindHookCmd(sp));
 	}
 
 	void RemoveHook(DWORD processId, uint64_t address)
 	{
 		processRecordsByIds->at(processId).Send(RemoveHookCmd(address));
-	}
-
-	void FindHooks(DWORD processId, SearchParam sp, HookEventHandler HookFound)
-	{
-		if (HookFound) processRecordsByIds->at(processId).OnHookFound = HookFound;
-		processRecordsByIds->at(processId).Send(FindHookCmd(sp));
 	}
 
 	TextThread& GetThread(ThreadParam tp)
@@ -236,7 +303,9 @@ namespace Host
 
 	void AddClipboardThread(DWORD thread_id)
 	{
-		textThreadsByParams->try_emplace(clipboard, clipboard, HookParam{}, CLIPBOARD);
+		HookBaseInfo info;
+		info.HookCode = HookCode::Generate(HookParamX86{});
+		textThreadsByParams->try_emplace(clipboard, clipboard, info, CLIPBOARD);
 		OnCreate(GetThread(clipboard));
 		static AutoHandle<> clipboardUpdate = CreateEventW(nullptr, FALSE, TRUE, NULL);
 		SetWindowsHookExW(WH_GETMESSAGE, [](int statusCode, WPARAM wParam, LPARAM lParam)

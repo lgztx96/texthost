@@ -90,6 +90,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;TEXTHOST_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -170,11 +171,11 @@
     <ClInclude Include="texthost.h" />
     <ClInclude Include="textthread.h" />
     <ClInclude Include="types.h" />
+    <ClInclude Include="yapi.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="extension.cpp" />
-    <ClCompile Include="hookcode.cpp" />
     <ClCompile Include="host.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -184,6 +185,7 @@
     </ClCompile>
     <ClCompile Include="texthost.cpp" />
     <ClCompile Include="textthread.cpp" />
+    <ClCompile Include="yapi.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="texthost.def" />

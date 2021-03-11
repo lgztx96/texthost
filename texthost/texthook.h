@@ -21,36 +21,47 @@ inline std::atomic<bool (*)(LPVOID addr, DWORD frame, DWORD stack)> trigger_fun 
 // jichi 9/25/2013: This class will be used by NtMapViewOfSectionfor
 // interprocedure communication, where constructor/destructor will NOT work.
 
-class TextHook
+class TextHookX86
 {
 public:
-	HookParam hp;
+	HookParamX86 hp;
 	union
 	{
 		uint64_t address;
 		void* location;
 	}; // Absolute address
 
-	bool Insert(HookParam hp, DWORD set_flag);
-	void Clear();
-
 private:
-	void Read();
-	bool InsertHookCode();
-	bool InsertReadCode();
-	void Send(uintptr_t dwDatabase);
-	int GetLength(uintptr_t base, uintptr_t in); // jichi 12/25/2013: Return 0 if failed
-	int HookStrlen(BYTE* data);
-	void RemoveHookCode();
-	void RemoveReadCode();
-
 	volatile DWORD useCount;
-	HANDLE readerThread, readerEvent;
+	uint32_t readerThread, readerEvent;
 	bool err;
-	BYTE trampoline[x64 ? 140 : 40];
-
+	BYTE trampoline[40];
 };
 
-enum { MAX_HOOK = 300, HOOK_BUFFER_SIZE = MAX_HOOK * sizeof(TextHook), HOOK_SECTION_SIZE = HOOK_BUFFER_SIZE * 2 };
+class TextHookX64
+{
+public:
+	HookParamX64 hp;
+	union
+	{
+		uint64_t address;
+		void* location;
+	}; // Absolute address
+
+private:
+	volatile DWORD useCount;
+	uint64_t readerThread, readerEvent;
+	bool err;
+	BYTE trampoline[140];
+};
+
+enum 
+{ 
+	MAX_HOOK = 300, 
+	HOOK_BUFFER_SIZE_X86 = MAX_HOOK * sizeof(TextHookX86), 
+	HOOK_SECTION_SIZE_X86 = HOOK_BUFFER_SIZE_X86 * 2,
+	HOOK_BUFFER_SIZE_X64 = MAX_HOOK * sizeof(TextHookX64),
+	HOOK_SECTION_SIZE_X64 = HOOK_BUFFER_SIZE_X64 * 2
+};
 
 // EOF

@@ -13,7 +13,7 @@ public:
 	inline static int maxBufferSize = 1000;
 	//inline static int maxHistorySize = 10'000'000;
 
-	TextThread(ThreadParam tp, HookParam hp, std::optional<std::wstring> name = {});
+	TextThread(ThreadParam tp, HookBaseInfo hp, std::optional<std::wstring> name = {});
 
 	void Start();
 	void Stop();
@@ -25,8 +25,8 @@ public:
 	const int64_t handle;
 	const std::wstring name;
 	const ThreadParam tp;
-	const HookParam hp;
-
+	const HookBaseInfo hp;
+	const std::wstring HookCode;
 private:
 	inline static int threadCounter = 0;
 

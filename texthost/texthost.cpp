@@ -4,6 +4,7 @@
 #include "extension.h"
 #include "hookcode.h"
 #include <fstream>
+#include "yapi.h"
 
 //const wchar_t* ALREADY_INJECTED = L"Textractor: already injected";
 //const wchar_t* NEED_32_BIT = L"Textractor: architecture mismatch: only Textractor x86 can inject this process";
@@ -33,7 +34,7 @@ namespace TextHost
 										ProcessEvent disconnect,
 										OnCreateThread create,
 										OnRemoveThread remove,
-										OutputText output
+										ReceiveText output
 									  )
 	{
 		auto createThread = [create](TextThread& thread)
@@ -44,13 +45,13 @@ namespace TextHost
 				thread.tp.ctx,
 				thread.tp.ctx2,
 				thread.name.c_str(),
-				HookCode::Generate(thread.hp, thread.tp.processId).c_str());
+				thread.hp.HookCode.c_str());
 		};
 		auto removeThread = [remove](TextThread& thread)
 		{
 			remove(thread.handle);
 		};
-		auto outputText = [output](TextThread& thread, std::wstring& text)
+		auto receiveText = [output](TextThread& thread, std::wstring& text)
 		{
 			if (thread.handle != 0)
 			{
@@ -58,13 +59,14 @@ namespace TextHost
 				Extension::RemoveRepeatPhrase(text);
 				text.erase(std::remove_if(text.begin(), text.end(), [](const wchar_t& c)
 					{
-						return c == L'\r' || c == L'\n';
+						return c == L'\r' || c == L'\n'; 
 					}), text.end());
+				Extension::trim(text);
 			}
-			output(thread.handle, text.c_str());
+			output(thread.handle, text.c_str(), text.size());
 		};
 
-		Host::Start(connect, disconnect, createThread, removeThread, outputText);
+		Host::Start(connect, disconnect, createThread, removeThread, receiveText);
 		Host::AddConsoleOutput(INITIALIZED);
 		return TRUE;
 	}
@@ -82,10 +84,24 @@ namespace TextHost
 
 	DLLEXPORT VOID WINAPI InsertHook(DWORD processId, LPCWSTR command)
 	{
-		if (auto hp = HookCode::Parse(command))
-		try { Host::InsertHook(processId, hp.value()); }
-		catch (std::out_of_range){ Host::AddConsoleOutput(INVALID_PROCESS); }
-		else { Host::AddConsoleOutput(INVALID_CODE); }
+		if (auto hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
+		{
+			if (detail::Is64BitProcess(hProcess)) 
+			{
+				if (auto hp = HookCode::Parse<HookParamX64>(command))
+					try { Host::InsertHookX64(processId, hp.value()); }
+					catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
+				else { Host::AddConsoleOutput(INVALID_CODE); }
+			}
+			else 
+			{
+				if (auto hp = HookCode::Parse<HookParamX86>(command))
+					try { Host::InsertHookX86(processId, hp.value()); }
+				catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
+				else { Host::AddConsoleOutput(INVALID_CODE); }
+			}
+		}
+		
 	}
 
 	DLLEXPORT VOID WINAPI RemoveHook(DWORD processId, uint64_t address)
@@ -99,25 +115,67 @@ namespace TextHost
 
 	DLLEXPORT VOID WINAPI SearchForText(DWORD processId, LPCWSTR text, INT codepage)
 	{
-		SearchParam sp = {};
-		wcsncpy_s(sp.text, text, PATTERN_SIZE - 1);
-		sp.codepage = codepage;
-		try { Host::FindHooks(processId, sp); }
-		catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
-		catch (std::exception ex) { Host::AddConsoleOutput(StringToWideString(ex.what())); }
+		if (auto hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
+		{
+			if (detail::Is64BitProcess(hProcess))
+			{
+				SearchParamX64 sp = {};
+				wcsncpy_s(sp.text, text, PATTERN_SIZE - 1);
+				sp.codepage = codepage;
+				try{ Host::FindHooksX64(processId, sp); }
+				catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
+				return;
+			}
+			else 
+			{
+				SearchParamX86 sp = {};
+				wcsncpy_s(sp.text, text, PATTERN_SIZE - 1);
+				sp.codepage = codepage;
+				try { Host::FindHooksX86(processId, sp); }
+				catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
+			}
+		}
+		
 	}
 
-	DLLEXPORT VOID WINAPI SearchForHooks(DWORD processId, SearchParam* sp, FindHooks findHooks)
+	DLLEXPORT VOID WINAPI SearchForHooks(DWORD processId, SearchParamX64* sp, ProcessEvent findHooks)
 	{
 		auto hooks = std::make_shared<std::vector<std::wstring>>();
-		auto timeout = GetTickCount64() + sp->searchTime + 5000;
+		auto timeout = GetTickCount64() + sp->searchTime + 5000;;
 
 		try
 		{
-			Host::FindHooks(processId, *sp, [hooks](HookParam hp, std::wstring text)
+			if (auto hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
+			{
+				if (detail::Is64BitProcess(hProcess))
 				{
-					hooks->push_back(HookCode::Generate(hp) + L" => " + text);
-				});
+					Host::FindHooksX64(processId, *sp, [hooks](HookParamX64 hp, std::wstring text)
+						{
+							hooks->push_back(HookCode::Generate(hp) + L" => " + text);
+						});
+				}
+				else
+				{
+					SearchParamX86 sp_X86 = {};
+					sp_X86.codepage = sp->codepage;
+					sp_X86.length = sp->length;
+					sp_X86.maxAddress = sp->maxAddress;
+					sp_X86.minAddress = sp->minAddress;
+					sp_X86.maxRecords = sp->maxRecords;
+					sp_X86.offset = sp->offset;
+					sp_X86.searchTime = sp->searchTime;
+					sp_X86.padding = sp->padding;
+					memcpy(sp_X86.pattern, sp->pattern, PATTERN_SIZE);
+					wmemcpy(sp_X86.boundaryModule, sp->boundaryModule, MAX_MODULE_SIZE);
+					wmemcpy(sp_X86.exportModule, sp->exportModule, MAX_MODULE_SIZE);
+
+					Host::FindHooksX86(processId, sp_X86, [hooks](HookParamX86 hp, std::wstring text)
+						{
+							hooks->push_back(HookCode::Generate(hp) + L" => " + text);
+						});
+				}
+			}
+			
 		}
 		catch (std::out_of_range)
 		{
@@ -125,7 +183,7 @@ namespace TextHost
 			return;
 		}
 
-		std::thread([hooks, timeout, findHooks]
+		std::thread([hooks, processId, timeout, findHooks]
 			{
 				for (int lastSize = 0; hooks->size() == 0 || hooks->size() != lastSize; Sleep(2000))
 				{
@@ -141,7 +199,8 @@ namespace TextHost
 						saveFile << WideStringToString(*it) << std::endl; //utf-8
 					}
 					saveFile.close();
-					if (hooks->size() != 0) findHooks();
+					if (hooks->size() != 0 && findHooks)
+						findHooks(processId);
 				}
 				hooks->clear();
 			}).detach();

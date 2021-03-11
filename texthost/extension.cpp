@@ -1,15 +1,13 @@
 #include "pch.h"
 #include "extension.h"
+#include <cwctype>
 
 namespace Extension 
 {    
-	//https://github.com/Artikash/Textractor/tree/master/extensions
 	constexpr wchar_t ERASED = 0xf246;
 
     void RemoveRepeatChar(std::wstring& sentence)
 	{
-		 //if (id == 0) return;
-
 		 std::vector<int> repeatNumbers(sentence.size() + 1, 0);
 		 int repeatNumber = 1;
 		 wchar_t prevChar = L'\0';
@@ -115,5 +113,42 @@ namespace Extension
 			}
 		}
 		sentence.erase(std::remove(sentence.begin(), sentence.end(), ERASED), sentence.end());
+	}
+
+	template <typename Sequence, typename Pred>     
+	Sequence& trim(Sequence& seq, Pred pred) 
+	{
+		return trim_start(trim_end(seq, pred), pred);
+	}
+
+	template <typename Sequence, typename Pred>
+	Sequence& trim_end(Sequence& seq, Pred pred) 
+	{
+		auto last = std::find_if_not(seq.rbegin(), seq.rend(), pred);
+		seq.erase(last.base(), seq.end());
+		return seq;
+	}
+
+	template <typename Sequence, typename Pred>
+	Sequence& trim_start(Sequence& seq, Pred pred) 
+	{
+		auto first = std::find_if_not(seq.begin(), seq.end(), pred);
+		seq.erase(seq.begin(), first);
+		return seq;
+	}
+
+	std::wstring& trim(std::wstring& str) 
+	{
+		return trim(str, [](const wchar_t c) { return std::iswspace(c); });
+	}
+
+	std::wstring& trim_start(std::wstring& str) 
+	{
+		return trim_start(str, [](const wchar_t c) { return std::iswspace(c); });
+	}
+
+	std::wstring& trim_end(std::wstring& str) 
+	{
+		return trim_end(str, [](const wchar_t c) { return std::iswspace(c); });
 	}
 }
