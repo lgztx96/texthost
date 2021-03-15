@@ -106,8 +106,8 @@ namespace
 		}
 	}
 
-	template <typename Notitf, typename Param>
-	void OnFindHooks(Notitf info, std::function<void(Param, std::wstring text)> OnHookFound)
+	template <HookParam T>
+	void OnFindHooks(HookFoundNotif<T> info, std::function<void(T, std::wstring text)> OnHookFound)
 	{
 		std::wstring wide = info.text;
 		if (wide.size() > STRING) OnHookFound(info.hp, std::move(info.text));
@@ -221,7 +221,7 @@ namespace Host
 
 				if (AutoHandle<> process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId))
 				{
-					std::wstring location = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL_X86);;
+					std::wstring location = std::filesystem::path(GetModuleFilename().value()).replace_filename(ITH_DLL_X86);
 					bool is64Bit = false;
 					if (is64Bit = detail::Is64BitProcess(process)) 
 					{
@@ -242,7 +242,6 @@ namespace Host
 					{
 						WriteProcessMemory(process, remoteData, location.c_str(), (location.size() + 1) * sizeof(wchar_t), nullptr);
 						if (AutoHandle<> thread = CreateRemoteThread(process, nullptr, 0, (LPTHREAD_START_ROUTINE)LoadLibraryW, remoteData, 0, nullptr)) WaitForSingleObject(thread, INFINITE);
-						//else if (GetLastError() == ERROR_ACCESS_DENIED) AddConsoleOutput(NEED_64_BIT); // https://stackoverflow.com/questions/16091141/createremotethread-access-denied
 						VirtualFreeEx(process, remoteData, 0, MEM_RELEASE);
 						return;
 					}

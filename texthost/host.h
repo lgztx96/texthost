@@ -8,7 +8,7 @@ namespace Host
 	using ProcessEventHandler = std::function<void(DWORD)>;;
 	using ThreadEventHandler = std::function<void(TextThread&)>;
 
-	template <typename T>
+	template <HookParam T>
 	using HookEventHandler = std::function<void(T, std::wstring text)>;
 
 	void Start(ProcessEventHandler Connect, ProcessEventHandler Disconnect, ThreadEventHandler Create, ThreadEventHandler Destroy, TextThread::OutputCallback Output);

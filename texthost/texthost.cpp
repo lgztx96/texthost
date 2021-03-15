@@ -7,8 +7,6 @@
 #include "yapi.h"
 
 //const wchar_t* ALREADY_INJECTED = L"Textractor: already injected";
-//const wchar_t* NEED_32_BIT = L"Textractor: architecture mismatch: only Textractor x86 can inject this process";
-//const wchar_t* NEED_64_BIT = L"Textractor: architecture mismatch: only Textractor x64 can inject this process";
 //const wchar_t* INVALID_CODEPAGE = L"Textractor: couldn't convert text (invalid codepage?)";
 //const wchar_t* INJECT_FAILED = L"Textractor: couldn't inject";
 //const wchar_t* INVALID_CODE = L"Textractor: invalid code";
@@ -18,8 +16,6 @@
 //const wchar_t* CLIPBOARD = L"Clipboard";
 
 const wchar_t* ALREADY_INJECTED = L"Textractor: 已经注入";
-const wchar_t* NEED_32_BIT = L"Textractor: 架构不匹配: 请尝试使用32位版本的Textractor";
-const wchar_t* NEED_64_BIT = L"Textractor: 架构不匹配: 请尝试使用64位版本的Textractor";
 const wchar_t* INVALID_CODEPAGE = L"Textractor: 无法转换文本 (无效的代码页?)";
 const wchar_t* INJECT_FAILED = L"Textractor: 无法注入";
 const wchar_t* INVALID_CODE = L"Textractor: 无效特殊码";
@@ -82,26 +78,29 @@ namespace TextHost
 		catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
 	}
 
+	template <HookParam T>
+	void InsertHook(DWORD processId, LPCWSTR command)
+	{
+		if (auto hp = HookCode::Parse<T>(command))
+			try
+		{
+			if constexpr (std::is_same<T, HookParamX86>::value)
+				Host::InsertHookX86(processId, hp.value());
+			else
+				Host::InsertHookX64(processId, hp.value());
+		}
+		catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
+		else { Host::AddConsoleOutput(INVALID_CODE); }
+	}
+
 	DLLEXPORT VOID WINAPI InsertHook(DWORD processId, LPCWSTR command)
 	{
-		if (auto hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
+		if (HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
 		{
-			if (detail::Is64BitProcess(hProcess)) 
-			{
-				if (auto hp = HookCode::Parse<HookParamX64>(command))
-					try { Host::InsertHookX64(processId, hp.value()); }
-					catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
-				else { Host::AddConsoleOutput(INVALID_CODE); }
-			}
-			else 
-			{
-				if (auto hp = HookCode::Parse<HookParamX86>(command))
-					try { Host::InsertHookX86(processId, hp.value()); }
-				catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
-				else { Host::AddConsoleOutput(INVALID_CODE); }
-			}
+			bool x64 = detail::Is64BitProcess(hProcess);
+			x64 ? InsertHook<HookParamX64>(processId, command)
+				: InsertHook<HookParamX86>(processId, command);
 		}
-		
 	}
 
 	DLLEXPORT VOID WINAPI RemoveHook(DWORD processId, uint64_t address)
@@ -113,27 +112,29 @@ namespace TextHost
 		}
 	}
 
+	template <SearchParam T>
+	void SearchHookByText(DWORD processId, LPCWSTR text, int codepage = 932)
+	{
+		T sp = {};
+		wcsncpy_s(sp.text, text, PATTERN_SIZE - 1);
+		sp.codepage = codepage;
+		try
+		{
+			if constexpr (std::is_same<T, SearchParamX86>::value)
+				Host::FindHooksX86(processId, sp);
+			else
+				Host::FindHooksX64(processId, sp);
+		}
+		catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
+	}
+
 	DLLEXPORT VOID WINAPI SearchForText(DWORD processId, LPCWSTR text, INT codepage)
 	{
-		if (auto hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
+		if (HANDLE hProcess = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))
 		{
-			if (detail::Is64BitProcess(hProcess))
-			{
-				SearchParamX64 sp = {};
-				wcsncpy_s(sp.text, text, PATTERN_SIZE - 1);
-				sp.codepage = codepage;
-				try{ Host::FindHooksX64(processId, sp); }
-				catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
-				return;
-			}
-			else 
-			{
-				SearchParamX86 sp = {};
-				wcsncpy_s(sp.text, text, PATTERN_SIZE - 1);
-				sp.codepage = codepage;
-				try { Host::FindHooksX86(processId, sp); }
-				catch (std::out_of_range) { Host::AddConsoleOutput(INVALID_PROCESS); }
-			}
+			bool x64 = detail::Is64BitProcess(hProcess);
+			x64 ? SearchHookByText<SearchParamX64>(processId, text, codepage)
+				: SearchHookByText<SearchParamX86>(processId, text, codepage);
 		}
 		
 	}
@@ -141,7 +142,7 @@ namespace TextHost
 	DLLEXPORT VOID WINAPI SearchForHooks(DWORD processId, SearchParamX64* sp, ProcessEvent findHooks)
 	{
 		auto hooks = std::make_shared<std::vector<std::wstring>>();
-		auto timeout = GetTickCount64() + sp->searchTime + 5000;;
+		auto timeout = GetTickCount64() + sp->searchTime + 5000;
 
 		try
 		{

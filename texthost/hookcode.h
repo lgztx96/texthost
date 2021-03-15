@@ -8,7 +8,7 @@
 
 namespace
 {
-	template <typename T>
+	template <HookParam T>
 	std::optional<T> ParseRCode(std::wstring RCode)
 	{
 		std::wsmatch match;
@@ -54,7 +54,7 @@ namespace
 		return hp;
 	}
 
-	template <typename T>
+	template <HookParam T>
 	std::optional<T> ParseHCode(std::wstring HCode)
 	{
 		std::wsmatch match;
@@ -196,7 +196,7 @@ namespace
 		return FormatString(L"%I64X", num);
 	}
 
-	template <typename T>
+	template <HookParam T>
 	std::wstring GenerateRCode(T hp)
 	{
 		std::wstring RCode = L"R";
@@ -219,7 +219,7 @@ namespace
 		return RCode;
 	}
 
-	template <typename T>
+	template <HookParam T>
 	std::wstring GenerateHCode(T hp, DWORD processId)
 	{
 		std::wstring HCode = L"H";
@@ -297,18 +297,18 @@ namespace
 
 namespace HookCode
 {
-	template <typename Param>
-	std::optional<Param> Parse(std::wstring code)
+	template <HookParam T>
+	std::optional<T> Parse(std::wstring code)
 	{
 		if (code[0] == L'/') code.erase(0, 1); // legacy/AGTH compatibility
-		if (code[0] == L'R') return ParseRCode<Param>(code.erase(0, 1));
-		else if (code[0] == L'H') return ParseHCode<Param>(code.erase(0, 1));
+		if (code[0] == L'R') return ParseRCode<T>(code.erase(0, 1));
+		else if (code[0] == L'H') return ParseHCode<T>(code.erase(0, 1));
 		return {};
 	}
 
-	template <typename Param>
-	std::wstring Generate(Param hp, DWORD processId = 0)
+	template <HookParam T>
+	std::wstring Generate(T hp, DWORD processId = 0)
 	{
-		return hp.type & DIRECT_READ ? GenerateRCode<Param>(hp) : GenerateHCode<Param>(hp, processId);
+		return hp.type & DIRECT_READ ? GenerateRCode<T>(hp) : GenerateHCode<T>(hp, processId);
 	}
 }
