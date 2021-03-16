@@ -81,8 +81,6 @@ namespace Extension
 
 	void RemoveRepeatPhrase(std::wstring& sentence)
 	{
-		//if (id == 0) return false;
-		//std::wstring sentence(text);
 		// This algorithm looks for repeating substrings (in other words, common prefixes among the set of suffixes) of the sentence with length > 6
 		// It then looks for any regions of characters at least twice as long as the substring made up only of characters in the substring, and erases them
 		// If this results in the substring being completely erased from the string, the substring is copied to the last location where it was located in the original string

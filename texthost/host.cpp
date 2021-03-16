@@ -20,13 +20,12 @@ namespace
 	public:
 		ProcessRecord(DWORD processId, HANDLE pipe) :
 			pipe(pipe),
-			is64Bit(detail::Is64BitProcess(OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId))),
 			mappedFile(OpenFileMappingW(FILE_MAP_READ, FALSE, (ITH_SECTION_ + std::to_wstring(processId)).c_str())),
 			viewX86(*(const TextHookX86(*)[MAX_HOOK])MapViewOfFile(mappedFile, FILE_MAP_READ, 0, 0, HOOK_SECTION_SIZE_X86 / 2)), // jichi 1/16/2015: Changed to half to hook section size
 			viewX64(*(const TextHookX64(*)[MAX_HOOK])MapViewOfFile(mappedFile, FILE_MAP_READ, 0, 0, HOOK_SECTION_SIZE_X64 / 2)), // jichi 1/16/2015: Changed to half to hook section size
 			viewMutex(ITH_HOOKMAN_MUTEX_ + std::to_wstring(processId))
 		{
-			if (is64Bit)
+			if (detail::Is64BitProcess(OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, processId)))
 				OnHookFoundX64 = [](HookParamX64 hp, std::wstring text) { Host::AddConsoleOutput(HookCode::Generate(hp) + L": " + text); };
 
 		}
@@ -37,9 +36,9 @@ namespace
 			UnmapViewOfFile(viewX64);
 		}
 
-		HookBaseInfo GetHookInfo(uint64_t addr, DWORD processId)
+		HookBaseInfo GetHookInfo(uint64_t addr, DWORD processId, bool x64)
 		{
-			return is64Bit ? GetHook(viewX64, addr, processId) : GetHook(viewX86, addr, processId);
+			return x64 ? GetHook(viewX64, addr, processId) : GetHook(viewX86, addr, processId);
 		}
 
 		template <typename T>
@@ -80,7 +79,6 @@ namespace
 
 	private:
 		HANDLE pipe;
-		BOOL is64Bit;
 		AutoHandle<> mappedFile;
 		const TextHookX86(&viewX86)[MAX_HOOK];
 		const TextHookX64(&viewX64)[MAX_HOOK];
@@ -178,7 +176,7 @@ namespace
 						auto thread = textThreadsByParams->find(tp);
 						if (thread == textThreadsByParams->end())
 						{
-							try { thread = textThreadsByParams->try_emplace(tp, tp, processRecordsByIds->at(tp.processId).GetHookInfo(tp.addr, processId)).first; }
+							try { thread = textThreadsByParams->try_emplace(tp, tp, processRecordsByIds->at(tp.processId).GetHookInfo(tp.addr, processId, is64Bit)).first; }
 							catch (std::out_of_range) { continue; } // probably garbage data in pipe, try again
 							OnCreate(thread->second);
 						}
@@ -216,7 +214,7 @@ namespace Host
 			{
 				if (processId == GetCurrentProcessId()) return;
 
-				WinMutex(ITH_HOOKMAN_MUTEX_ + std::to_wstring(processId));
+				WinMutex(ITH_HOOKMAN_MUTEX_ + std::to_wstring(processId), nullptr);
 				if (GetLastError() == ERROR_ALREADY_EXISTS) return AddConsoleOutput(ALREADY_INJECTED);
 
 				if (AutoHandle<> process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId))

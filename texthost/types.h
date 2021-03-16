@@ -92,10 +92,10 @@ struct ThreadParam
 
 struct SearchParamX86
 {
-	BYTE pattern[PATTERN_SIZE] = { x64 ? 0xcc : 0x55, x64 ? 0xcc : 0x8b, x64 ? 0x48 : 0xec, 0x89 }; // pattern in memory to search for
-	int length = x64 ? 4 : 3, // length of pattern (zero means this SearchParam is invalid and the default should be used)
-		offset = x64 ? 2 : 0, // offset from start of pattern to add hook
-		searchTime = 20000, // ms
+	BYTE pattern[PATTERN_SIZE] = { 0x55, 0x8b, 0xec, 0x89 }; // pattern in memory to search for
+	int length = 3, // length of pattern (zero means this SearchParam is invalid and the default should be used)
+		offset = 0, // offset from start of pattern to add hook
+		searchTime = 30000, // ms
 		maxRecords = 100000,
 		codepage = SHIFT_JIS;
 	uint32_t padding = 0, // same as hook param padding
@@ -108,10 +108,10 @@ struct SearchParamX86
 
 struct SearchParamX64
 {
-	BYTE pattern[PATTERN_SIZE] = { x64 ? 0xcc : 0x55, x64 ? 0xcc : 0x8b, x64 ? 0x48 : 0xec, 0x89 }; // pattern in memory to search for
-	int length = x64 ? 4 : 3, // length of pattern (zero means this SearchParam is invalid and the default should be used)
-		offset = x64 ? 2 : 0, // offset from start of pattern to add hook
-		searchTime = 20000, // ms
+	BYTE pattern[PATTERN_SIZE] = { 0xcc, 0xcc, 0x48, 0x89 }; // pattern in memory to search for
+	int length = 4, // length of pattern (zero means this SearchParam is invalid and the default should be used)
+		offset = 2, // offset from start of pattern to add hook
+		searchTime = 30000, // ms
 		maxRecords = 100000,
 		codepage = SHIFT_JIS;
 	uint64_t padding = 0, // same as hook param padding
