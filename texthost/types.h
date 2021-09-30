@@ -22,7 +22,7 @@ inline SECURITY_ATTRIBUTES allAccess = std::invoke([] // allows non-admin proces
 		return SECURITY_ATTRIBUTES{ sizeof(SECURITY_ATTRIBUTES), &sd, FALSE };
 	});
 
-struct HookBaseInfo 
+struct HookInfo 
 {
 	DWORD type; // flags
 	UINT codepage; // text encoding

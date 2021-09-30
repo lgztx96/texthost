@@ -14,7 +14,7 @@ static bool RemoveRepetition(std::wstring& text)
 	return false;
 }
 
-TextThread::TextThread(ThreadParam tp, HookBaseInfo hp, std::optional<std::wstring> name) :
+TextThread::TextThread(ThreadParam tp, HookInfo hp, std::optional<std::wstring> name) :
 	handle(threadCounter++),
 	name(name.value_or(StringToWideString(hp.name))),
 	tp(tp),
@@ -23,7 +23,7 @@ TextThread::TextThread(ThreadParam tp, HookBaseInfo hp, std::optional<std::wstri
 
 void TextThread::Start()
 {
-	CreateTimerQueueTimer(&timer, NULL, [](void* This, BOOLEAN) { ((TextThread*)This)->Flush(); }, this, 10, 10, WT_EXECUTELONGFUNCTION);
+	CreateTimerQueueTimer(&timer, NULL, [](void* This, auto) { ((TextThread*)This)->Flush(); }, this, 10, 10, WT_EXECUTELONGFUNCTION);
 }
 
 void TextThread::Stop()
@@ -43,15 +43,28 @@ void TextThread::Push(BYTE* data, int length)
 
 	BYTE doubleByteChar[2];
 	if (length == 1) // doublebyte characters must be processed as pairs
-		if (leadByte) std::tie(doubleByteChar[0], doubleByteChar[1], data, length, leadByte) = std::tuple(leadByte, data[0], doubleByteChar, 2, 0);
-		else if (IsDBCSLeadByteEx(hp.codepage ? hp.codepage : Host::defaultCodepage, data[0])) std::tie(leadByte, length) = std::tuple(data[0], 0);
+	{
+		if (leadByte)
+		{
+			doubleByteChar[0] = leadByte;
+			doubleByteChar[1] = data[0];
+			data = doubleByteChar;
+			length = 2;
+			leadByte = 0;
+		}
+		else if (IsDBCSLeadByteEx(hp.codepage ? hp.codepage : Host::defaultCodepage, data[0]))
+		{
+			leadByte = data[0];
+			length = 0;
+		}
+	}
 
 	if (hp.type & HEX_DUMP) for (int i = 0; i < length; i += sizeof(short)) buffer.append(FormatString(L"%04hX ", *(short*)(data + i)));
 	else if (hp.type & USING_UNICODE) buffer.append((wchar_t*)data, length / sizeof(wchar_t));
 	else if (auto converted = StringToWideString(std::string((char*)data, length), hp.codepage ? hp.codepage : Host::defaultCodepage)) buffer.append(converted.value());
 	else Host::AddConsoleOutput(INVALID_CODEPAGE);
 	if (hp.type & FULL_STRING) buffer.push_back(L'\n');
-	lastPushTime = GetTickCount();
+	lastPushTime = GetTickCount64();
 
 	if (filterRepetition)
 	{
@@ -85,7 +98,7 @@ void TextThread::Flush()
 
 	std::scoped_lock lock(bufferMutex);
 	if (buffer.empty()) return;
-	if (buffer.size() > maxBufferSize || GetTickCount() - lastPushTime > flushDelay)
+	if (buffer.size() > maxBufferSize || GetTickCount64() - lastPushTime > flushDelay)
 	{
 		AddSentence(std::move(buffer));
 		buffer.clear();

@@ -190,7 +190,7 @@ namespace TextHost
 					if (GetTickCount64() > timeout) break; 
 				}
 				static std::string location = std::filesystem::current_path().string() + "\\";
-				std::ofstream saveFile(location + "result.txt");
+				std::ofstream saveFile(location + std::to_string(processId) + "-result.txt");
 				if (saveFile.is_open())
 				{
 					for (std::vector<std::wstring>::const_iterator it = hooks->begin(); it != hooks->end(); ++it)

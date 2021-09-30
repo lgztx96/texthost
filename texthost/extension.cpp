@@ -8,38 +8,33 @@ namespace Extension
 
     void RemoveRepeatChar(std::wstring& sentence)
 	{
-		 std::vector<int> repeatNumbers(sentence.size() + 1, 0);
-		 int repeatNumber = 1;
-		 wchar_t prevChar = L'\0';
-		 for (auto nextChar : sentence)
-		 {
-			 if (nextChar == prevChar)
-			 {
-				 repeatNumber += 1;
-			 }
-			 else
-			 {
-				 prevChar = nextChar;
-				 repeatNumbers.at(repeatNumber) += 1;
-				 repeatNumber = 1;
-			 }
-		 }
-		 if ((repeatNumber = std::distance(repeatNumbers.begin(), std::max_element(repeatNumbers.begin(), repeatNumbers.end()))) == 1) return;
+		std::vector<int> repeatNumbers(sentence.size() + 1, 0);
+		for (int i = 0; i < sentence.size(); ++i)
+		{
+			if (sentence[i] != sentence[i + 1])
+			{
+				int j = i;
+				while (sentence[j] == sentence[i] && --j >= 0);
+				repeatNumbers[i - j] += 1;
+			}
+		}
+		int repeatNumber = std::distance(repeatNumbers.begin(), std::max_element(repeatNumbers.rbegin(), repeatNumbers.rend()).base() - 1);
+		if (repeatNumber < 2) return;
 
-		 std::wstring newSentence;
-		 for (int i = 0; i < sentence.size();)
-		 {
-			 newSentence.push_back(sentence.at(i));
-			 for (int j = i; j <= sentence.size(); ++j)
-			 {
-				 if (j == sentence.size() || sentence.at(i) != sentence.at(j))
-				 {
-					 i += (j - i) % repeatNumber == 0 ? repeatNumber : 1;
-					 break;
-				 }
-			 }
-		 }
-		 sentence = newSentence;			
+		std::wstring newSentence;
+		for (int i = 0; i < sentence.size();)
+		{
+			newSentence.push_back(sentence[i]);
+			for (int j = i; j <= sentence.size(); ++j)
+			{
+				if (j == sentence.size() || sentence[i] != sentence[j])
+				{
+					i += (j - i) % repeatNumber == 0 ? repeatNumber : 1;
+					break;
+				}
+			}
+		}
+		sentence = newSentence;
 	}
 
 	std::vector<int> GenerateSuffixArray(const std::wstring& text)
@@ -58,10 +53,9 @@ namespace Extension
 			eqClasses[suffixArray[0]] = 0;
 			for (int i = 1; i < text.size(); ++i)
 			{
-				int currentSuffix = suffixArray[i];
-				int lastSuffix = suffixArray[i - 1];
+				int currentSuffix = suffixArray[i], lastSuffix = suffixArray[i - 1];
 				if (currentSuffix + length < text.size() && prevEqClasses[currentSuffix] == prevEqClasses[lastSuffix] &&
-					prevEqClasses[currentSuffix + length / 2] == prevEqClasses.at(lastSuffix + length / 2)) // not completely certain that this will stay in range
+					prevEqClasses[currentSuffix + length / 2] == prevEqClasses[lastSuffix + length / 2])
 					eqClasses[currentSuffix] = eqClasses[lastSuffix];
 				else eqClasses[currentSuffix] = i;
 			}
